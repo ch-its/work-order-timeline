@@ -1,59 +1,47 @@
-# WorkOrderTimeline
+# Work Order Timeline (Angular 19 + Signals)
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.0.
+A high-performance, interactive scheduling timeline built to demonstrate modern Angular patterns, complex state management, and robust automated testing. This project was developed as a technical assessment focusing on scalability, accessibility, and professional engineering standards.
 
-## Development server
+## Key Features
 
-To start a local development server, run:
+* **Signal-Based Architecture**: Utilizes Angular Signals for fine-grained reactivity, ensuring only the necessary parts of the DOM update during state changes.
+* **Infinite Horizontal Scroll**: A custom-built virtual timeline that dynamically prepends and appends date "chunks" as the user scrolls, supporting an infinite temporal range.
+* **Contextual Tooltips & Menus**: Real-time mouse tracking for interactive tooltips and task-specific action menus.
+* **Performance Optimized**: Implements `ChangeDetectionStrategy.OnPush` and `trackBy` functions to minimize re-renders and DOM churn.
+* **Enterprise UI/UX**: Professional styling using custom SCSS, featuring a slide-out "Edit/Create" panel and date-overlap validation.
 
-```bash
-ng serve
-```
+## Testing Strategy (The "Bonus" Suite)
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+This project implements a dual-layer testing strategy to ensure reliability and catch UI regressions:
 
-## Code scaffolding
+1.  **Unit Tests (Vitest)**: Focused on complex date-to-pixel math and signal state transitions.
+    * **Run command**: `npm test`
+2.  **End-to-End Tests (Playwright)**: Real-browser simulations including a regression test for the "Ghost Tooltip" bug.
+    * **Run command**: `npx playwright test --ui`
+3.  **CI/CD Integration**: A **GitHub Actions** workflow is configured to automatically run Playwright tests on every push to the `main` branch, ensuring a stable repository.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## 🛠️ Installation & Setup
 
-```bash
-ng generate component component-name
-```
+1.  **Clone the Repository**:
+    ```bash
+    git clone [https://github.com/ch-its/work-order-timeline.git](https://github.com/ch-its/work-order-timeline.git)
+    cd work-order-timeline
+    ```
+2.  **Install Dependencies**:
+    ```bash
+    npm install --legacy-peer-deps
+    ```
+3.  **Run the App**:
+    ```bash
+    ng serve
+    ```
+    Navigate to `http://localhost:4200/`.
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Extended Documentation
 
-```bash
-ng generate --help
-```
+To see the depth of the engineering process and AI collaboration, please refer to:
+* [**AI Prompts Log**](./AI_PROMPTS.md): Documentation of the architectural planning and collaboration with AI.
+* [**Technical Trade-offs**](./TRADE_OFFS.md): Detailed explanation of architectural decisions and engineering rationale.
 
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+---
+*Created by Chaitanya Mahajan as a technical submission.*
