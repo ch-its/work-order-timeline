@@ -1,6 +1,6 @@
 # AI Prompts Log 
 
-# This Markdown file contains a few selected AI Prompts I've used in completing this home challenge
+This Markdown file contains a few selected AI Prompts I've used in completing this home challenge
 
 Prompt 1: "I am architecting a Work Order Timeline application. I want to move away from legacy lifecycle hooks and use a Signal-based architecture for maximum reactivity. 
 1. Define a `WorkOrder` interface with `docId`, `status`, and a `data` object for start/end dates.
