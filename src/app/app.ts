@@ -121,8 +121,11 @@ export class App implements OnInit, AfterViewInit {
       { docId: 'wo-4', docType: 'workOrder', data: { name: 'Milling B Finishing', workCenterId: 'wc-3', status: 'in-progress', startDate: '2026-04-10', endDate: '2026-06-05' } },
       { docId: 'wo-5', docType: 'workOrder', data: { name: 'Major Assembly Sub-A', workCenterId: 'wc-4', status: 'blocked', startDate: '2026-03-10', endDate: '2026-06-30' } },
       { docId: 'wo-6', docType: 'workOrder', data: { name: 'QA Check Quarter 1', workCenterId: 'wc-5', status: 'complete', startDate: '2026-02-01', endDate: '2026-04-10' } },
-      { docId: 'wo-7', docType: 'workOrder', data: { name: 'CNC Machine 2', workCenterId: 'wc-5', status: 'in-progress', startDate: '2026-05-01', endDate: '2026-07-15' } }
-    ];
+      { docId: 'wo-7', docType: 'workOrder', data: { name: 'CNC Machine 2', workCenterId: 'wc-5', status: 'in-progress', startDate: '2026-05-01', endDate: '2026-07-15' } },
+      { docId: 'wo-9', docType: 'workOrder', data: { name: 'Assembly Station B', workCenterId: 'wc-6', status: 'complete', startDate: '2026-01-15', endDate: '2026-03-20' } },
+      { docId: 'wo-10', docType: 'workOrder', data: { name: 'Packaging Line A', workCenterId: 'wc-6', status: 'open', startDate: '2026-04-01', endDate: '2026-06-30' } },
+      { docId: 'wo-12', docType: 'workOrder', data: { name: 'Emergency Repair', workCenterId: 'wc-7', status: 'in-progress', startDate: '2026-03-20', endDate: '2026-08-05' } }
+      ];
 
     if (isPlatformBrowser(this.platformId)) {
       const saved = localStorage.getItem('naologic_work_orders');
