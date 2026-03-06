@@ -1,0 +1,248 @@
+<div class="app-container" (click)="closeMenus()">
+  <div class="main-layout-wrapper">
+    <div class="brand-header">
+      <img src="naologic-logo.png" alt="Naologic Logo" class="logo-image">
+    </div>
+
+    <header class="page-header" role="banner">
+      <h1>Work Orders</h1>
+      <div class="controls">
+        
+        <button class="btn-today" aria-label="Scroll timeline to today" (click)="scrollToToday()">Today</button>
+
+        <div class="custom-dropdown-container" role="combobox" aria-label="Select timescale" [attr.aria-expanded]="isDropdownOpen()">
+          <div class="timescale-selector">
+            <span class="label">Timescale</span>
+            <div class="selected-value">
+              {{ timescaleLabel() }}
+              <div class="arrow-down" aria-hidden="true" (click)="toggleDropdown($event)"></div>
+            </div>
+          </div>
+      
+          @if (isDropdownOpen()) {
+            <div class="dropdown-menu" role="listbox">
+              <div class="dropdown-item" role="option" [class.selected]="timescale() === 'day'" (click)="selectTimescale('day')">Day</div>
+              <div class="dropdown-item" role="option" [class.selected]="timescale() === 'week'" (click)="selectTimescale('week')">Week</div>
+              <div class="dropdown-item" role="option" [class.selected]="timescale() === 'month'" (click)="selectTimescale('month')">Month</div>
+            </div>
+          }
+        </div>
+      </div>
+    </header>
+
+    <div class="timeline-board" role="grid" aria-label="Work Order Timeline">
+      <div class="left-panel" role="rowgroup">
+        <div class="grid-header-row" role="row">
+          <div class="header-cell" role="columnheader">Work Center</div>
+        </div>
+        @for (wc of workCenters(); track wc.docId) {
+          <div class="work-center-row" role="rowheader" [class.hovered]="hoveredRowId() === wc.docId">
+            {{ wc.data.name }}
+          </div>
+        }
+      </div>
+
+      <div class="right-panel" #scrollViewport (scroll)="handleScroll($event)">
+        <div class="scroll-container">
+          <div class="current-day-indicator" aria-hidden="true" [style.left.px]="currentDayPosition()"></div>
+          <div class="grid-background" aria-hidden="true">
+            @for (date of timelineDates(); track $index) {
+              <div class="grid-column" [style.width.px]="columnWidth()"></div>
+            }
+          </div>
+          <div class="grid-header-row" role="row">
+            @for (date of timelineDates(); track $index) {
+              <div class="date-cell" role="columnheader" [style.width.px]="columnWidth()" [style.flex-basis.px]="columnWidth()">
+                {{ date.label }}
+                @if (isCurrentMonth(date)) {
+                  <div class="current-month-pill">Current month</div>
+                }
+              </div>
+            }
+          </div>
+  
+          @for (wc of workCenters(); track wc.docId) {
+            <div class="timeline-row"
+                role="row"
+                [class.hovered]="hoveredRowId() === wc.docId"
+                (mousemove)="handleMouseMove($event, wc.docId)"
+                (mouseleave)="handleMouseLeave()">
+                
+                @for (wo of getWorkOrdersForCenter(wc.docId); track wo.docId) {
+                  <div class="task-bar" 
+                        role="button"
+                        tabindex="0"
+                        [attr.aria-label]="'Work order: ' + wo.data.name + ', Status: ' + wo.data.status"
+                        [class]="getStatusClass(wo.data.status)"
+                        [class.menu-open]="activeMenuId() === wo.docId"
+                        [class.is-small]="getBarWidth(wo) < 130"
+                        [style.left.px]="getBarLeft(wo)" 
+                        [style.width.px]="getBarWidth(wo)"
+                        (mousemove)="handleTaskMouseMove($event, wo)"
+                        (mouseleave)="handleTaskMouseLeave()">
+                    
+                    <span class="task-title" [title]="wo.data.name">{{ wo.data.name }}</span>
+                    
+                    <div class="task-actions">
+                      <span class="task-badge">{{ formatStatusLabel(wo.data.status) }}</span>
+                      
+                      <div class="options-wrapper">
+                        <button class="options-btn" 
+                                aria-label="Task options"
+                                aria-haspopup="menu"
+                                [attr.aria-expanded]="activeMenuId() === wo.docId"
+                                [class.active]="activeMenuId() === wo.docId"
+                                (click)="toggleMenu($event, wo.docId)">
+                          <span class="dot"></span>
+                          <span class="dot"></span>
+                          <span class="dot"></span>
+                        </button>
+                    
+                        @if (activeMenuId() === wo.docId) {
+                          <div class="task-menu" role="menu" (click)="$event.stopPropagation()">
+                            <div class="menu-item" role="menuitem" (click)="editWorkOrder(wo.docId)">Edit</div>
+                            <div class="menu-item" role="menuitem" (click)="deleteWorkOrder(wo.docId)">Delete</div>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                }
+                
+                @if (hoveredRowId() === wc.docId && !isOverExistingOrder(wc.docId)) {
+                  <div class="phantom-bar" [style.left.px]="mouseX()" [style.width.px]="113"></div>
+                  <div class="phantom-tooltip-container" 
+                      [style.left.px]="mouseX()" 
+                      [style.width.px]="113"
+                      (click)="openCreatePanel(wc.docId)">
+                    <div class="tooltip-box">Click to add dates</div>
+                  </div>
+                }
+            </div>
+          }
+        </div>
+      </div>
+    </div> 
+  </div> 
+
+  @if (isPanelOpen()) {
+    <div class="side-panel-overlay" (mousedown)="$event.preventDefault(); closePanel()"></div>
+    
+    <div class="side-panel" role="dialog" aria-labelledby="panelHeading" aria-describedby="panelDescription">
+      
+      <div class="panel-header">
+        <div class="header-titles">
+          <h2 id="panelHeading">Work Order Details</h2>
+          <p id="panelDescription">Specify the dates, name and status for this order</p>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="btn-cancel" aria-label="Cancel editing" (mousedown)="$event.preventDefault(); closePanel()" (click)="closePanel()">Cancel</button>
+          <button class="btn-create" aria-label="Save work order" (click)="saveWorkOrder()">{{ editingDocId() ? 'Save' : 'Create' }}</button>
+        </div>
+      </div>
+
+      <form [formGroup]="workOrderForm" class="panel-form">
+        
+        @if (overlapError()) {
+          <div class="error-banner" role="alert">
+            {{ overlapError() }}
+          </div>
+        }
+
+        <div class="form-group">
+          <label for="woNameInput">Work Order Name</label>
+          <input type="text" 
+                 id="woNameInput"
+                 class="form-control"
+                 #nameInput
+                 formControlName="name" 
+                 placeholder="Acme Inc."
+                 [class.input-error]="workOrderForm.get('name')?.invalid && workOrderForm.get('name')?.touched">
+          
+          @if (workOrderForm.get('name')?.invalid && workOrderForm.get('name')?.touched) {
+            <div class="field-error-text" role="alert">Work Order Name is required</div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label>Status</label>
+          <ng-select [items]="statusOptions"
+                     bindLabel="label"
+                     bindValue="value"
+                     formControlName="status"
+                     [clearable]="false"
+                     [searchable]="false"
+                     class="custom-ng-select"
+                     aria-label="Work order status"
+                     (open)="dpStart?.close(); dpEnd?.close()">
+            
+            <ng-template ng-label-tmp let-item="item">
+              <div class="status-pill pill-{{ item.value }}">
+                {{ item.label }}
+              </div>
+            </ng-template>
+
+            <ng-template ng-option-tmp let-item="item">
+              <span [class.selected]="workOrderForm.value.status === item.value">{{ item.label }}</span>
+            </ng-template>
+          </ng-select>
+        </div>
+
+        <div class="form-group">
+          <label for="woStartDate">Start date</label>
+          <input class="form-control" 
+                 id="woStartDate"
+                 placeholder="yyyy-mm-dd"
+                 name="dpStart" 
+                 formControlName="startDate" 
+                 ngbDatepicker 
+                 navigation="arrows"
+                 #dpStart="ngbDatepicker"
+                 (click)="dpStart.toggle()"
+                 [class.is-create-mode]="!editingDocId()"
+                 [class.input-error]="workOrderForm.get('startDate')?.invalid && workOrderForm.get('startDate')?.touched">
+                 
+          @if (workOrderForm.get('startDate')?.invalid && workOrderForm.get('startDate')?.touched) {
+            <div class="field-error-text" role="alert">Start date is required</div>
+          }
+        </div>
+
+        <div class="form-group">
+          <label for="woEndDate">End date</label>
+          <input class="form-control" 
+                 id="woEndDate"
+                 placeholder="yyyy-mm-dd"
+                 name="dpEnd" 
+                 formControlName="endDate" 
+                 ngbDatepicker 
+                 navigation="arrows"
+                 #dpEnd="ngbDatepicker"
+                 (click)="dpEnd.toggle()"
+                 [class.is-create-mode]="!editingDocId()"
+                 [class.input-error]="workOrderForm.get('endDate')?.invalid && workOrderForm.get('endDate')?.touched">
+
+          @if (workOrderForm.get('endDate')?.invalid && workOrderForm.get('endDate')?.touched) {
+            <div class="field-error-text" role="alert">End date is required</div>
+          }
+        </div>
+
+      </form>
+    </div>
+  }
+
+  @if (hoveredTask(); as task) {
+    @if (activeMenuId() !== task.docId) {
+      <div class="fixed-tooltip" 
+           aria-hidden="true"
+           [style.left.px]="mouseXClient() + 15"
+           [style.top.px]="mouseYClient() + 15">
+        <div class="tt-header">{{ task.data.name }}</div>
+        <div class="tt-status">
+          <span [class]="'tt-dot ' + task.data.status"></span>
+          {{ formatStatusLabel(task.data.status) }}
+        </div>
+        <div class="tt-date">{{ task.data.startDate }} &rarr; {{ task.data.endDate }}</div>
+      </div>
+    }
+  }
+</div>
