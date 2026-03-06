@@ -5,6 +5,10 @@ import { NgSelectModule } from '@ng-select/ng-select';
 import { NgbDatepickerModule, NgbInputDatepicker } from '@ng-bootstrap/ng-bootstrap';
 import { TimelineService } from './services/timeline';
 
+/**
+ * Types and Interfaces for the Timeline
+ */
+
 export type Timescale = 'day' | 'week' | 'month';
 
 interface TimelineColumn {
@@ -30,14 +34,21 @@ export interface WorkOrderDocument {
   imports: [CommonModule, ReactiveFormsModule, NgSelectModule, NgbDatepickerModule], 
   templateUrl: './app.html',
   styleUrl: './app.scss',
+  /**
+   * OnPush Change Detection: The component only re-renders when a Signal changes 
+   * or an Event is fired, improving performance.
+   */
   changeDetection: ChangeDetectionStrategy.OnPush 
 })
 export class App implements OnInit, AfterViewInit {
+  // DOM References for scroll control and focus management
   @ViewChild('scrollViewport') scrollViewport!: ElementRef<HTMLElement>;
   @ViewChild('dpStart') dpStart?: NgbInputDatepicker;
   @ViewChild('dpEnd') dpEnd?: NgbInputDatepicker;
   @ViewChild('nameInput') nameInput?: ElementRef<HTMLInputElement>;
   
+  // @upgrade: Add a caching layer to prevent redundant API calls when switching between timescales
+  // Dependency Injection using the  'inject' function
   private timelineService = inject(TimelineService);
   private fb = inject(FormBuilder); 
   private platformId = inject(PLATFORM_ID);
@@ -46,19 +57,24 @@ export class App implements OnInit, AfterViewInit {
   workCenters = this.timelineService.workCenters;
   
   today = signal(new Date()); 
-  hoveredRowId = signal<string | null>(null);
-  mouseX = signal<number>(0); 
+  hoveredRowId = signal<string | null>(null); // Tracks which row is currently hovered for 'phantom' bar
+  mouseX = signal<number>(0); // Local X within a row for 'phantom' bar placement
 
-  // Tooltip Mouse Tracking Signals
+  // @upgrade: Move Tooltips and Context Menus to a global CDK Overlay to avoid z-index stacking context issues and improve screen reader portal management for better accessibility compliance.
+
+  // Tooltip tracking: Separated from row hover to handle floating tooltips
   hoveredTask = signal<WorkOrderDocument | null>(null);
   mouseXClient = signal<number>(0);
   mouseYClient = signal<number>(0);
 
   isDropdownOpen = signal(false);
-  activeMenuId = signal<string | null>(null); 
+  activeMenuId = signal<string | null>(null); // Tracks which task menu is currently visible
   timescale = signal<Timescale>('month');
-
-  // RESTORED: Your preferred scroll prepending limits
+  /**
+   * Infinite Scroll Offsets:
+   * These indices represent how many "chunks" (12 units) we've loaded 
+   * to the left and right of our initial "Today" starting point.
+   */
   leftOffsetIndex = signal<number>(-12);
   rightOffsetIndex = signal<number>(24);
   isAdjustingScroll = false;
@@ -69,9 +85,11 @@ export class App implements OnInit, AfterViewInit {
     month: { columnWidth: 114, label: 'Month' }
   };
 
+  // Computed Signals: These automatically update when their dependencies change
   columnWidth = computed(() => this.zoomConfigs[this.timescale()].columnWidth);
   timescaleLabel = computed(() => this.zoomConfigs[this.timescale()].label);
 
+  // Side Panel state (Create/Edit)
   isPanelOpen = signal(false);
   editingDocId = signal<string | null>(null);
   selectedWorkCenterId = signal<string | null>(null);
@@ -83,7 +101,7 @@ export class App implements OnInit, AfterViewInit {
     { value: 'complete', label: 'Complete' },
     { value: 'blocked', label: 'Blocked' }
   ];
-
+  // Reactive Form for validation and data handling
   workOrderForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
     status: ['open', Validators.required],
@@ -91,6 +109,9 @@ export class App implements OnInit, AfterViewInit {
     endDate: [null, Validators.required]
   });
 
+  /**
+   * Data Hydration: Merges default mock data with any data persisted in LocalStorage.
+   */
   private getDefaultData(): WorkOrderDocument[] {
     const defaultData = [
       { docId: 'wo-1', docType: 'workOrder', data: { name: 'Extrusion Line A', workCenterId: 'wc-1', status: 'complete', startDate: '2026-03-01', endDate: '2026-04-15' } },
@@ -113,6 +134,7 @@ export class App implements OnInit, AfterViewInit {
   workOrders = signal<WorkOrderDocument[]>(this.getDefaultData());
 
   constructor() {
+    // Persistence: Automatically save to LocalStorage whenever the Signal updates
     effect(() => {
       if (isPlatformBrowser(this.platformId)) {
         localStorage.setItem('naologic_work_orders', JSON.stringify(this.workOrders()));
@@ -121,22 +143,28 @@ export class App implements OnInit, AfterViewInit {
   }
 
   ngOnInit() {
+    // Keep 'Today' indicator accurate without full page refreshes
     setInterval(() => this.today.set(new Date()), 60000);
     this.resetOffsets(this.timescale());
   }
 
   ngAfterViewInit() {
+    // Initial scroll placement: Ensure user lands on the current date
     if (isPlatformBrowser(this.platformId)) {
       setTimeout(() => this.scrollToToday(), 150);
     }
   }
 
+  // Accessibility: Close overlays on Escape key
   @HostListener('document:keydown.escape')
   handleEscape() {
     if (this.isPanelOpen()) this.closePanel();
     this.closeMenus();
   }
 
+  /**
+   * Helper: Converters between NgbDateStruct (UI) and YYYY-MM-DD (Data)
+   */
   toNgbDate(dateStr: string) {
     if (!dateStr) return null;
     const [year, month, day] = dateStr.split('-').map(Number);
@@ -162,22 +190,27 @@ export class App implements OnInit, AfterViewInit {
     this.scrollToToday();
   }
 
+  /**
+   * Infinite Scroll Engine:
+   * Detects when the user reaches the edge of the current date range 
+   * and expands the timeline dynamically without visual jumping.
+   */
+  // @upgrade: Implement a Virtual Scroll strategy to keep DOM nodes minimal and ensure 60fps scrolling performance, if the number of work orders exceeds 5,000.
   handleScroll(event: Event) {
     if (this.isAdjustingScroll || !isPlatformBrowser(this.platformId)) return;
     const el = event.target as HTMLElement;
     
-    // RESTORED: Your exact preferred scroll physics
-    const threshold = 350; 
-
+    const threshold = 350; // Pixels from edge to trigger loading
+    // Expansion to the LEFT (Past)
     if (el.scrollLeft < threshold) {
       this.isAdjustingScroll = true;
       const preWidth = el.scrollWidth;
       const preLeft = el.scrollLeft;
 
       this.leftOffsetIndex.update(v => v - 12);
-      this.cdr.detectChanges(); 
-
-      // FIXED: Wait exactly 1 frame for the browser flexbox to finish resizing
+      this.cdr.detectChanges(); // Force DOM update to calculate new width immediately
+      // Scroll adjustment logic: prevents the scroll position from jumping 
+      // when content is prepended to the left.
       requestAnimationFrame(() => {
         el.scrollLeft = preLeft + (el.scrollWidth - preWidth);
         setTimeout(() => { this.isAdjustingScroll = false; }, 100);
@@ -225,7 +258,10 @@ export class App implements OnInit, AfterViewInit {
     this.activeMenuId.set(null);
     this.isDropdownOpen.set(false);
   }
-
+  /**
+   * Create Mode: Converts a pixel coordinate on the grid into a Date 
+   * to pre-fill the form based on where the user clicked.
+   */
  openCreatePanel(workCenterId: string) {
     const startX = Math.max(0, this.mouseX());
     const startDate = this.getDateFromPixelPosition(startX);
@@ -280,7 +316,9 @@ export class App implements OnInit, AfterViewInit {
     this.overlapError.set(null);
     this.isPanelOpen.set(false);
   }
-
+  /**
+   * Save/Update logic including date overlap validation
+   */
   saveWorkOrder() {
     if (this.workOrderForm.invalid) {
       this.workOrderForm.markAllAsTouched();
@@ -299,12 +337,12 @@ export class App implements OnInit, AfterViewInit {
     
     const newStart = new Date(startStr).getTime();
     const newEnd = new Date(endStr).getTime();
-
+    // Logical Validation: End cannot precede Start
     if (newEnd < newStart) {
       this.overlapError.set('End date cannot be before the start date.');
       return;
     }
-
+    // Scheduling Validation: Prevent overlapping work orders in the same Work Center
     const hasOverlap = this.workOrders().some(wo => {
       if (currentId && wo.docId === currentId) return false;
       if (wo.data.workCenterId !== wcId) return false;
@@ -359,6 +397,9 @@ export class App implements OnInit, AfterViewInit {
     });
   }
 
+  /**
+   * Mouse Interaction Handlers
+   */
   handleMouseMove(event: MouseEvent, rowIndex: string) {
     this.hoveredRowId.set(rowIndex);
     const target = event.currentTarget as HTMLElement;
@@ -380,6 +421,11 @@ export class App implements OnInit, AfterViewInit {
     this.hoveredTask.set(null);
   }
 
+  /**
+   * Timeline View Computation: 
+   * Generates the array of dates used to render the columns and grid headers.
+   */
+  // @upgrade: Implement Drag-and-Drop functionality for Work Orders using @angular/cdk/drag-drop
   timelineDates = computed<TimelineColumn[]>(() => {
     const scale = this.timescale();
     const columns: TimelineColumn[] = [];
@@ -406,6 +452,10 @@ export class App implements OnInit, AfterViewInit {
     return date.date.getMonth() === now.getMonth() && date.date.getFullYear() === now.getFullYear();
   }
 
+  /**
+   * COORDINATE SYSTEM MATH:
+   * Translates real-world Dates into pixel offsets and vice-versa.
+   */
   getPixelPositionFromDate(dateInput: string | Date): number {
     let targetDate = (typeof dateInput === 'string') ? new Date(dateInput) : dateInput;
     if (!this.timelineDates().length) return 0;
@@ -461,6 +511,10 @@ export class App implements OnInit, AfterViewInit {
     return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
   }
 
+  /**
+   * TrackBy Functions:
+   * Performance optimization for *ngFor to prevent re-rendering elements that haven't changed.
+   */
   trackByWorkOrder(index: number, item: any): string {
     return item.docId;
   }
